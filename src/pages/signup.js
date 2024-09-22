@@ -93,7 +93,7 @@ export default function Signup() {
           <p className="text-netflix-white mt-4">
             Already have an account?{" "}
             <Link href="/login" className="text-blue-500">
-              Sign up now
+              Sign In now
             </Link>
             .
           </p>
