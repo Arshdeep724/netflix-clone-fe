@@ -1,115 +1,103 @@
-import Image from "next/image";
-import localFont from "next/font/local";
-
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-  weight: "100 900",
-});
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
-  weight: "100 900",
-});
+import { useState, useEffect } from "react";
+import Layout from "../components/layout";
+import MovieRow from "../components/movieRow";
+import axiosApiInstance from "@/lib/axios.config";
+import { API_ROUTES } from "@/constants";
+import { useError } from "@/components/errorContext";
 
 export default function Home() {
-  return (
-    <div
-      className={`${geistSans.variable} ${geistMono.variable} grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]`}
-    >
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/pages/index.js
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const { showError } = useError();
+  const [categories, setCategories] = useState({
+    nowPlayingMovies: { title: "Now Playing", movies: [] },
+    popularMovies: { title: "Popular on Netflix", movies: [] },
+    topRatedMovies: { title: "Top Rated", movies: [] },
+    upcomingMovies: { title: "Upcoming", movies: [] },
+  });
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+  const fetchMovies = async (currentPage) => {
+    if (loading || !hasMore) return;
+    setLoading(true);
+    try {
+      const response = await axiosApiInstance.get(
+        `${API_ROUTES.GET_MOVIES}?page=${currentPage}`
+      );
+      const newMovies = response.data;
+
+      setCategories((prev) => {
+        const updatedCategories = { ...prev };
+        Object.keys(newMovies).forEach((key) => {
+          updatedCategories[key].movies = [
+            ...prev[key].movies,
+            ...newMovies[key],
+          ];
+        });
+        return updatedCategories;
+      });
+
+      setPage(currentPage);
+      setHasMore(
+        Object.values(newMovies).some((category) => category.length > 0)
+      );
+    } catch (error) {
+      console.error("Error fetching movies:", error);
+      showError(error.response?.data?.message || "Error fetching movies");
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchMovies(1);
+  }, []);
+
+  const loadMore = () => {
+    fetchMovies(page + 1);
+  };
+
+  return (
+    <Layout>
+      <main className="pb-8">
+        {categories.popularMovies.movies.length > 0 && (
+          <div className="relative h-[56.25vw] mb-8">
+            <img
+              src={categories.popularMovies.movies[0].backdrop_path}
+              alt={categories.popularMovies.movies[0].title}
+              className="w-full h-full object-cover"
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
+            <div className="absolute bottom-0 left-0 p-8 bg-gradient-to-t from-netflix-black to-transparent w-full">
+              <h1 className="text-5xl font-bold text-netflix-white mb-4">
+                {categories.popularMovies.movies[0].title}
+              </h1>
+              <p className="text-lg text-netflix-white mb-4 max-w-2xl">
+                {categories.popularMovies.movies[0].overview}
+              </p>
+              <button className="bg-netflix-white text-netflix-black px-6 py-2 rounded font-bold hover:bg-opacity-80 transition">
+                Play
+              </button>
+            </div>
+          </div>
+        )}
+
+        {Object.entries(categories).map(([key, category]) => (
+          <MovieRow
+            key={key}
+            title={category.title}
+            movies={category.movies}
+            loadMore={loadMore}
+          />
+        ))}
+
+        {loading && (
+          <div className="text-center text-netflix-white">Loading...</div>
+        )}
+        {!hasMore && (
+          <div className="text-center text-netflix-white">
+            No more movies to load
+          </div>
+        )}
       </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+    </Layout>
   );
 }
