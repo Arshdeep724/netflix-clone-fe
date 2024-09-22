@@ -40,12 +40,12 @@ const Favourites = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-netflix-black text-netflix-white px-4 py-6">
+      <div className="min-h-screen bg-netflix-black text-netflix-white px-4 py-0">
         <h1 className="text-3xl font-bold mb-6">Favourites</h1>
         {favourites.length === 0 ? (
           <p className="text-center text-gray-500">No favourites added yet.</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 justify-center">
+          <div className="flex flex-wrap justify-center gap-4"> {/* Use flexbox here */}
             {favourites.map((movie) => (
               <div
                 key={movie.id}
@@ -60,9 +60,7 @@ const Favourites = () => {
         {selectedMovie && isModalOpen && (
           <MovieModal
             movie={selectedMovie}
-            onClose={() => {
-              setIsModalOpen(false);
-            }}
+            onClose={closeModal}
             onFavouriteRemoved={handleFavouriteRemoved}
           />
         )}

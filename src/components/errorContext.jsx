@@ -7,7 +7,7 @@ export const ErrorProvider = ({ children }) => {
 
   const showError = (message) => {
     setError(message);
-    setTimeout(() => setError(null), 5000); // Auto-hide after 5 seconds
+    setTimeout(() => setError(null), 5000);
   };
 
   const hideError = () => setError(null);

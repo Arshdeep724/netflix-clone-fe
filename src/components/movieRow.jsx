@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useCallback } from "react";
 import MovieCard from "./movieCard";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 
@@ -8,6 +8,15 @@ export default function MovieRow({ title, movies, loadMore }) {
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
   const observer = useRef();
+  const scrolling = useRef(false);
+
+  const handleIntersection = useCallback((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        setVisibleMovies((prev) => [...prev, entry.target.dataset.movieId]);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     const options = {
@@ -16,13 +25,7 @@ export default function MovieRow({ title, movies, loadMore }) {
       threshold: 0.1,
     };
 
-    observer.current = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          setVisibleMovies((prev) => [...prev, entry.target.dataset.movieId]);
-        }
-      });
-    }, options);
+    observer.current = new IntersectionObserver(handleIntersection, options);
 
     const currentRowRef = rowRef.current;
     if (currentRowRef) {
@@ -36,25 +39,24 @@ export default function MovieRow({ title, movies, loadMore }) {
         observer.current.disconnect();
       }
     };
-  }, [movies]);
+  }, [handleIntersection, movies]);
+
+  const handleScroll = useCallback(() => {
+    if (rowRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = rowRef.current;
+      setShowLeftArrow(scrollLeft > 0);
+      setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 1);
+
+      if (scrollWidth - scrollLeft - clientWidth < 200 && !scrolling.current) {
+        loadMore();
+      }
+    }
+  }, [loadMore]);
 
   useEffect(() => {
-    const handleScroll = () => {
-      if (rowRef.current) {
-        const { scrollLeft, scrollWidth, clientWidth } = rowRef.current;
-        setShowLeftArrow(scrollLeft > 0);
-        setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 1);
-
-        if (scrollWidth - scrollLeft - clientWidth < 200) {
-          loadMore();
-        }
-      }
-    };
-
     const currentRowRef = rowRef.current;
     if (currentRowRef) {
       currentRowRef.addEventListener("scroll", handleScroll);
-      // Trigger initial check
       handleScroll();
     }
 
@@ -63,15 +65,38 @@ export default function MovieRow({ title, movies, loadMore }) {
         currentRowRef.removeEventListener("scroll", handleScroll);
       }
     };
-  }, [loadMore]);
+  }, [handleScroll]);
 
-  const scroll = (direction) => {
-    if (rowRef.current) {
-      const { clientWidth } = rowRef.current;
-      const scrollAmount = direction === "left" ? -clientWidth : clientWidth;
-      rowRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
-    }
-  };
+  const scroll = useCallback(
+    (direction) => {
+      if (rowRef.current && !scrolling.current) {
+        scrolling.current = true;
+        const { clientWidth } = rowRef.current;
+        const scrollAmount =
+          direction === "left" ? -clientWidth * 0.75 : clientWidth * 0.75;
+        const start = rowRef.current.scrollLeft;
+        const startTime = performance.now();
+        const duration = 300;
+
+        const animateScroll = (currentTime) => {
+          const elapsedTime = currentTime - startTime;
+          if (elapsedTime < duration) {
+            const progress = elapsedTime / duration;
+            const easeProgress = 0.5 - Math.cos(progress * Math.PI) / 2;
+            rowRef.current.scrollLeft = start + scrollAmount * easeProgress;
+            requestAnimationFrame(animateScroll);
+          } else {
+            rowRef.current.scrollLeft = start + scrollAmount;
+            scrolling.current = false;
+            handleScroll();
+          }
+        };
+
+        requestAnimationFrame(animateScroll);
+      }
+    },
+    [handleScroll]
+  );
 
   return (
     <div className="mb-8 relative group">
@@ -87,7 +112,8 @@ export default function MovieRow({ title, movies, loadMore }) {
         )}
         <div
           ref={rowRef}
-          className="flex overflow-x-auto space-x-4 pb-4 scrollbar-hide scroll-smooth"
+          className="flex overflow-x-auto space-x-4 pb-4 scrollbar-hide"
+          style={{ scrollBehavior: "auto" }}
         >
           {movies.map((movie) => (
             <div

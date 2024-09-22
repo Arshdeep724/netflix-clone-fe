@@ -5,16 +5,28 @@ import { API_ROUTES } from "@/constants";
 const MovieModal = ({ movie, onClose, onFavouriteRemoved }) => {
   const [isFavourite, setIsFavourite] = useState(false);
 
+  useEffect(() => {
+    const favourites = JSON.parse(localStorage.getItem("favourites")) || [];
+    const isFav = favourites.includes(movie.id);
+    setIsFavourite(isFav);
+  }, [movie.id]);
+
   const handleToggleFavourite = async () => {
     try {
       const movie_id = movie.id;
+      const favourites = JSON.parse(localStorage.getItem("favourites")) || [];
+
       if (isFavourite) {
+        const updatedFavourites = favourites.filter((id) => id !== movie_id);
+        localStorage.setItem("favourites", JSON.stringify(updatedFavourites));
         await axiosApiInstance.delete(
           `${API_ROUTES.REMOVE_FAVOURITE}/?movie_id=${movie_id}`
         );
         setIsFavourite(false);
-        onFavouriteRemoved(); // Call this when a favourite is removed
+        onFavouriteRemoved();
       } else {
+        const updatedFavourites = [...favourites, movie_id];
+        localStorage.setItem("favourites", JSON.stringify(updatedFavourites));
         const body = {
           backdrop_path: movie.backdrop_path,
           movie_id: movie_id,
@@ -32,8 +44,14 @@ const MovieModal = ({ movie, onClose, onFavouriteRemoved }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-      <div className="relative bg-netflix-black text-netflix-white p-6 rounded-lg max-w-3xl w-full overflow-hidden">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
+      onClick={onClose}
+    >
+      <div
+        className="relative bg-netflix-black text-netflix-white p-6 rounded-lg max-w-3xl w-full overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div
           className="absolute inset-0 bg-cover bg-center opacity-30"
           style={{ backgroundImage: `url(${movie.backdrop_path})` }}
